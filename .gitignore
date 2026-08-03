@@ -24,7 +24,7 @@ proto/gen/python/__pycache__/
 *.db-shm
 baseline.json
 *.pid
-*.pid.txt
+*.pid*
 .session-token
 demo-summary.json
 
