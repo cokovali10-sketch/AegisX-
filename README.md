@@ -1,6 +1,6 @@
 # AegisX Security Suite
 
-![CI](https://github.com/anomalyco/AegisX/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/cokovali10-sketch/AegisX-/actions/workflows/ci.yml/badge.svg)
 ![Go](https://img.shields.io/badge/Go-1.22-00ADD8)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB)
 ![Rust](https://img.shields.io/badge/Rust%20(ebpf+yara+ffi)-stable-DEA584)
