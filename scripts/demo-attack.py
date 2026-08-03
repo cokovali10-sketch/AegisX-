@@ -127,7 +127,7 @@ def _proto_of(result: pb.ScoringResult) -> str:
     return result.summary.split(" ")[0] if result.summary else "?"
 
 
-def phase_soar(stub: pb_grpc.AegisXStub, event: pb.HoneypotEvent) -> dict:
+def phase_soar(stub: pb_grpc.SOARPlaybookServiceStub, event: pb.HoneypotEvent) -> dict:
     """Run an inline SOAR playbook through PhishGuard and show the action chain."""
     print("\n== Phase 2: SOAR playbook -> ShadowPot firewall block ==")
     inline = pb.Playbook(
@@ -222,7 +222,8 @@ def main() -> int:
             summary["phases"]["intake"] = {
                 "events": phase_intake(stub, events)}
             demo_event = events[0]
-            summary["phases"]["soar"] = phase_soar(stub, demo_event)
+            summary["phases"]["soar"] = phase_soar(
+                pb_grpc.SOARPlaybookServiceStub(channel), demo_event)
         summary["phases"]["command_plane"] = phase_command_plane()
         summary["finished_at"] = _ts()
     except grpc.RpcError as exc:

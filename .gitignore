@@ -23,6 +23,10 @@ proto/gen/python/__pycache__/
 *.db-wal
 *.db-shm
 baseline.json
+*.pid
+*.pid.txt
+.session-token
+demo-summary.json
 
 # Local secrets
 .env
