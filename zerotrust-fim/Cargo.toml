@@ -1,0 +1,53 @@
+[package]
+name = "aegis_core"
+version = "0.1.0"
+edition = "2021"
+description = "ZeroTrust FIM Guard - memory-safe file integrity monitoring, BLAKE3 hashing, process anomaly detection"
+license = "Apache-2.0"
+rust-version = "1.75"
+
+[lib]
+name = "aegis_core"
+crate-type = ["cdylib", "rlib", "staticlib"]
+
+[[bin]]
+name = "aegisx-fim"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+blake3 = "1.5"
+notify = "6.1"
+rusqlite = { version = "0.31", features = ["bundled"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+dashmap = "5.5"
+clap = { version = "4.5", features = ["derive"] }
+libc = "0.2"
+log = "0.4"
+env_logger = "0.11"
+# Parallel multi-threaded BLAKE3 baseline hashing (always compiled; used by
+# AegisFim::new_with_threads / rescan_parallel).
+rayon = "1.10"
+# Optional in-kernel execve interceptor (src/ebpf). Requires kernel BPF
+# support; when disabled (default) the daemon falls back to a /proc poller.
+aya = { version = "0.12", optional = true }
+aya-log = { version = "0.2", optional = true }
+# Optional YARA in-memory process scanning (src/memscan). Requires the system
+# libyara (`libyara-dev` in the container image).
+yara = { version = "0.13", optional = true }
+
+[features]
+default = []
+# Enables the C ABI surface (aegis_core.h) for C/C++ / language-FFI callers.
+ffi = []
+# Enables the aya-based sys_enter_execve tracepoint interceptor.
+ebpf = ["dep:aya", "dep:aya-log"]
+# Enables the YARA process-memory scanner (requires system libyara).
+yara = ["dep:yara"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = "symbols"

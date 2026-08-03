@@ -1,0 +1,41 @@
+# Build artifacts
+bin/
+target/
+build/
+*.class
+*.jar
+!control-center/gradle/wrapper/gradle-wrapper.jar
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Generated proto bindings are COMMITTED so a fresh clone builds without protoc
+# (CI and `go test ./...` rely on them). Only strip stray bytecode/fragments.
+proto/gen/python/__pycache__/
+
+# Runtime state
+*.log
+*.db
+*.db-wal
+*.db-shm
+baseline.json
+
+# Local secrets
+.env
+.env.local
+!.env.example
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.gradle/
+.kotlin/

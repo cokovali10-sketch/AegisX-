@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    name: Go (recon + shadowpot)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          cache-dependency-path: |
+            sentinel-recon/go.sum
+            shadowpot/go.sum
+      - name: sentinel-recon (build + vet + test)
+        run: |
+          cd sentinel-recon
+          go build -mod=mod ./...
+          go vet -mod=mod ./...
+          go test -mod=mod ./...
+      - name: shadowpot (build + vet + test)
+        run: |
+          cd shadowpot
+          go build -mod=mod ./...
+          go vet -mod=mod ./...
+          go test -mod=mod ./...
+
+  python:
+    name: PhishGuard (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install deps
+        run: |
+          pip install --upgrade pip
+          pip install -r phishguard/requirements.txt
+          pip install pytest
+      - name: Syntax + imports
+        run: |
+          python -m compileall phishguard/app -q
+          PYTHONPATH="phishguard:proto/gen/python" python -c "import app.main, app.grpc_server, app.grpc_advanced, app.fim_bridge, app.intel.aggregator, app.ml.anomaly, app.soar.playbook, app.config; print('imports ok')"
+      - name: pytest
+        run: python -m pytest -q
+        working-directory: phishguard
+
+  kotlin:
+    name: Control Center (compileKotlin)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: compileKotlin
+        run: |
+          chmod +x gradlew
+          bash ./gradlew compileKotlin --console=plain
+        working-directory: control-center
+
+  rust:
+    name: ZeroTrust FIM (cargo test, all features)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native deps (libyara, libelf, clang)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential clang libelf-dev zlib1g-dev libyara-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: zerotrust-fim
+      - name: cargo build (default)
+        run: cargo build --manifest-path zerotrust-fim/Cargo.toml
+      - name: cargo test (default + ffi)
+        run: cargo test --features ffi --manifest-path zerotrust-fim/Cargo.toml
+      - name: "cargo test (all features: ebpf + yara + ffi)"
+        run: cargo test --all-features --manifest-path zerotrust-fim/Cargo.toml
+      - name: cargo build --release (features)
+        run: cargo build --release --features "ebpf yara ffi" --manifest-path zerotrust-fim/Cargo.toml
+
+  docker:
+    name: Build all images
+    runs-on: ubuntu-latest
+    needs: [go, python, rust, kotlin]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Validate compose config
+        run: docker compose config
+      - name: Build all images
+        run: docker compose build --no-cache
+      - name: Smoke test compose stack
+        run: |
+          docker compose up -d
+          for i in $(seq 1 30); do
+            if docker inspect -f '{{.State.Health.Status}}' aegisx-phishguard 2>/dev/null | grep -q healthy; then
+              echo "phishguard healthy after ${i}x2s"
+              docker compose ps
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "phishguard did not become healthy"
+          docker compose ps
+          docker compose logs phishguard | tail -40
+          exit 1

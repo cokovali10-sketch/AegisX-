@@ -1,0 +1,28 @@
+# PhishGuard AI: FastAPI microservice + AegisX gRPC gateway
+FROM python:3.12-slim AS build
+
+WORKDIR /src
+COPY proto /src/proto
+COPY phishguard /src/phishguard
+
+# Install runtime + codegen tooling to build proto bindings.
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir grpcio-tools && \
+    python -m grpc_tools.protoc --proto_path=/src/proto \
+      --python_out=/src/proto/gen/python --grpc_python_out=/src/proto/gen/python \
+      /src/proto/aegisx.proto && \
+    pip install --no-cache-dir -r /src/phishguard/requirements.txt
+
+FROM python:3.12-slim
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1 PYTHONPATH=/app:/app/proto/gen/python
+
+# Re-run dependency install in the slim runtime for a clean image.
+COPY --from=build /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY . /app
+
+EXPOSE 8080 50051
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
+  CMD python -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/health')" || exit 1
+
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]

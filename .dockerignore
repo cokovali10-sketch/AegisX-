@@ -1,0 +1,12 @@
+**/bin
+**/target
+**/build
+**/__pycache__
+**/.venv
+**/.gradle
+**/.kotlin
+**/.idea
+proto/gen
+*.db
+*.log
+.git

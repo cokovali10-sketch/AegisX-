@@ -1,0 +1,37 @@
+playbooks:
+  - name: "block_malicious_ssh"
+    description: "Block + report + notify when a malicious SSH attacker hits a decoy."
+    enabled: true
+    trigger:
+      min_severity: "HIGH"
+      min_verdict: "MALICIOUS"
+      indicator_tags: ["credential-attempt", "signature:", "osint:"]
+      protocol: "ssh"
+      condition: "threat_score >= 60 and severity == \"HIGH\""
+    actions:
+      - type: firewall_block
+        target: "SOURCE_IP"
+        params:
+          backend: "nftables"
+      - type: incident_report
+        params:
+          title: "Malicious SSH attack"
+      - type: notify
+        params:
+          channel: "control-center"
+
+  - name: "review_suspicious_http"
+    description: "Journal + notify for suspicious web-layer probing, no auto-block."
+    enabled: true
+    trigger:
+      min_severity: "MEDIUM"
+      min_verdict: "SUSPICIOUS"
+      protocol: "http"
+      condition: "threat_score >= 35"
+    actions:
+      - type: incident_report
+        params:
+          title: "Suspicious HTTP probing"
+      - type: notify
+        params:
+          channel: "control-center"

@@ -1,0 +1,28 @@
+# Normalize all text files to LF in the repository regardless of platform.
+* text=auto
+
+# Shell/POSIX scripts must stay LF even when checked out on Windows.
+*.sh text eol=lf
+gradlew text eol=lf
+Makefile text eol=lf
+
+# Go / Python / Rust / Kotlin / YAML / proto — normalized to LF.
+*.go text eol=lf
+*.py text eol=lf
+*.rs text eol=lf
+*.kt text eol=lf
+*.proto text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.bat text eol=crlf
+
+# Binary artifacts — never diff or convert.
+*.jar binary
+*.pcap binary
+*.db binary
+*.png binary
+*.jpg binary
+*.ico binary

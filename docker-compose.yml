@@ -1,0 +1,169 @@
+# AegisX Security Suite - production XDR/SOAR orchestration
+# Usage: docker compose --env-file .env up -d --build
+#
+# Topology:
+#   phishguard (AI + SOAR + ThreatIntel gateway)
+#        ^-- gRPC 50051  --  shadowpot (6-protocol decoy grid + IP ban engine)
+#        ^-- gRPC 50053  --  shadowpot command plane (SOAR firewall blocks)
+#        ^-- Unix socket --  zerotrust-fim IPC (exec/FIM telemetry) via shared volume
+#        ^-- REST/WS 8080 -- Control Center (Kotlin desktop, external)
+#   sentinel-recon (on-demand SYN/connect scanning, profile "recon")
+#
+# Kernel-tracing & enforcement capabilities:
+#   shadowpot     -> CAP_NET_ADMIN (iptables/nftables), CAP_NET_RAW
+#   zerotrust-fim -> privileged (eBPF tracepoint, /proc + process-memory reads)
+#   sentinel-recon-> CAP_NET_RAW (raw SYN sockets)
+
+name: aegisx
+
+services:
+  phishguard:
+    build:
+      context: .
+      dockerfile: Dockerfile.phishguard
+    container_name: aegisx-phishguard
+    environment:
+      AEGISX_HTTP_PORT: "8080"
+      AEGISX_GRPC_PORT: "50051"
+      AEGISX_ABUSEIPDB_KEY: ${ABUSEIPDB_KEY:-}
+      AEGISX_VT_KEY: ${VT_KEY:-}
+      AEGISX_OTX_BASE: ${OTX_BASE:-https://otx.alienvault.com/api/v1}
+      AEGISX_THREATFOX_URL: ${THREATFOX_URL:-https://threatfox-api.abuse.ch/api/v1/}
+      AEGISX_SHADOWPOT_GRPC: shadowpot:50053
+      AEGISX_SHADOWPOT_TOKEN: ${AEGISX_SHADOWPOT_TOKEN:-}
+      AEGISX_FIM_IPC: /var/run/aegisx-fim.sock
+      AEGISX_REPORT_DIR: /var/lib/aegisx/reports
+      AEGISX_ML_ENABLED: "true"
+      AEGISX_CHROMA_PATH: /var/lib/aegisx/chroma
+    ports:
+      - "${PHISHGUARD_HTTP_PORT:-8080}:8080"
+      - "${PHISHGUARD_GRPC_PORT:-50051}:50051"
+    volumes:
+      - aegisx-data:/var/lib/aegisx
+      - aegisx-fim-ipc:/var/run
+    networks: [aegisx-net]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+
+  shadowpot:
+    build:
+      context: .
+      dockerfile: Dockerfile.shadowpot
+    container_name: aegisx-shadowpot
+    environment:
+      SHADOWPOT_GRPC_UPSTREAM: phishguard:50051
+      SHADOWPOT_GRPC_LISTEN: ":50053"
+      SHADOWPOT_GRPC_TOKEN: ${AEGISX_SHADOWPOT_TOKEN:-}
+      SHADOWPOT_HTTP_ADDR: ":${DECOY_HTTP_PORT:-8080}"
+      SHADOWPOT_SSH_ADDR: ":${DECOY_SSH_PORT:-2222}"
+      SHADOWPOT_MYSQL_ADDR: ":${DECOY_MYSQL_PORT:-3306}"
+      SHADOWPOT_REDIS_ADDR: ":${DECOY_REDIS_PORT:-6379}"
+      SHADOWPOT_POSTGRES_ADDR: ":${DECOY_POSTGRES_PORT:-5432}"
+      SHADOWPOT_TELNET_ADDR: ":${DECOY_TELNET_PORT:-23}"
+      SHADOWPOT_PCAP_DIR: /app/captures
+      SHADOWPOT_PCAP_ENABLED: ${PCAP_ENABLED:-true}
+      SHADOWPOT_BAN_ENABLED: ${BAN_ENABLED:-true}
+      SHADOWPOT_BAN_THRESHOLD: ${BAN_THRESHOLD:-3}
+      SHADOWPOT_BAN_WINDOW_SECONDS: ${BAN_WINDOW_SECONDS:-300}
+      SHADOWPOT_BAN_DURATION_SECONDS: ${BAN_DURATION_SECONDS:-3600}
+      SHADOWPOT_BAN_BACKEND: ${BAN_BACKEND:-auto}
+    ports:
+      - "${DECOY_HTTP_PORT:-8080}:8080"
+      - "${DECOY_SSH_PORT:-2222}:2222"
+      - "${DECOY_MYSQL_PORT:-3306}:3306"
+      - "${DECOY_REDIS_PORT:-6379}:6379"
+      - "${DECOY_POSTGRES_PORT:-5432}:5432"
+      - "${DECOY_TELNET_PORT:-23}:23"
+      - "${SHADOWPOT_GRPC_PORT:-50053}:50053"
+    # Host-level enforcement of nftables/iptables drop rules. For rules to apply
+    # to the host network namespace, also set network_mode: host below.
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - aegisx-pcap:/app/captures
+    depends_on:
+      phishguard:
+        condition: service_healthy
+    networks: [aegisx-net]
+    restart: unless-stopped
+
+  sentinel-recon:
+    build:
+      context: .
+      dockerfile: Dockerfile.sentinel-recon
+    container_name: aegisx-recon
+    environment:
+      SENTINEL_STREAM_ENDPOINT: phishguard:50051
+    cap_add:
+      - NET_RAW          # raw-socket SYN scan mode
+    depends_on:
+      phishguard:
+        condition: service_healthy
+    networks: [aegisx-net]
+    profiles: ["recon"]
+    restart: "no"
+    command: ["-help"]
+
+  zerotrust-fim:
+    build:
+      context: .
+      dockerfile: Dockerfile.fim
+      args:
+        # Enable advanced kernel features at image build time:
+        #   "ebpf"        in-kernel execve tracepoint (needs CAP_BPF/PERFMON + tracefs)
+        #   "yara"        process-memory YARA scanner (needs CAP_SYS_PTRACE)
+        FIM_FEATURES: ${FIM_FEATURES:-}
+    container_name: aegisx-fim
+    # privileged grants the equivalent of CAP_NET_ADMIN, CAP_SYS_PTRACE,
+    # CAP_BPF, CAP_PERFMON, CAP_SYS_ADMIN, CAP_DAC_READ_SEARCH needed for the
+    # eBPF hook, /proc anomaly scanning and YARA process-memory reads. Tighten
+    # to an explicit cap_add list if your runtime supports it.
+    privileged: true
+    volumes:
+      - aegisx-fim-state:/var/lib/aegisx
+      - aegisx-fim-ipc:/var/run
+      # Mount the host directory to protect. Extend to more roots as needed.
+      - ${FIM_WATCH_DIR:-/etc}:/watch:ro
+      - /proc:/hostproc:ro
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+      - /sys/kernel/tracing:/sys/kernel/tracing:ro
+    environment:
+      RUST_LOG: ${FIM_RUST_LOG:-info}
+    networks: [aegisx-net]
+    restart: unless-stopped
+    command: ["--watch", "/watch", "--baseline", "/var/lib/aegisx/fim-baseline.db",
+              "--socket", "/var/run/aegisx-fim.sock"]
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: aegisx-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - aegisx-prometheus-data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      phishguard:
+        condition: service_healthy
+    networks: [aegisx-net]
+    profiles: ["observability"]
+    restart: unless-stopped
+
+networks:
+  aegisx-net:
+    driver: bridge
+
+volumes:
+  aegisx-data:
+  aegisx-fim-state:
+  aegisx-fim-ipc:
+  aegisx-pcap:
+  aegisx-prometheus-data:

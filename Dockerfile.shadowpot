@@ -1,0 +1,28 @@
+# ShadowPot: multi-protocol decoy grid + PCAP recording + automated IP banning (Go)
+FROM golang:1.22-alpine AS build
+
+WORKDIR /src
+COPY proto /src/proto
+COPY shadowpot /src/shadowpot
+RUN cd /src/shadowpot && go mod download
+
+RUN apk add --no-cache protobuf protoc && \
+    go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.2 && \
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.4.0 && \
+    cd /src/proto && \
+    PATH="$PATH:/go/bin" protoc --go_out=gen/go --go_opt=paths=source_relative \
+      --go-grpc_out=gen/go --go-grpc_opt=paths=source_relative aegisx.proto && \
+    cd /src/shadowpot && \
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/aegisx-shadowpot ./cmd/aegisx-shadowpot
+
+# iptables/nftables are installed at runtime so the IP-banning engine can push
+# real drop rules when CAP_NET_ADMIN is granted (docker-compose). Without the
+# capability the engine degrades to an in-memory journal (dry-run).
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates tzdata iptables nftables && \
+    mkdir -p /app/captures
+WORKDIR /app
+COPY --from=build /out/aegisx-shadowpot /app/aegisx-shadowpot
+# Decoys + SOAR command plane (50053).
+EXPOSE 2222 8080 3306 6379 5432 23 50053
+ENTRYPOINT ["/app/aegisx-shadowpot"]

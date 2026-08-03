@@ -1,0 +1,301 @@
+syntax = "proto3";
+
+// AegisX Security Suite - unified telemetry contract.
+// This single IDL is compiled by:
+//   - protoc-gen-go / protoc-gen-go-grpc  -> Go (Sentinel-Recon, ShadowPot)
+//   - grpc_tools.protoc (python)          -> Python (PhishGuard AI)
+//   - protoc-gen-kotlin (optional)        -> Kotlin (Control Center)
+package aegisx;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "aegisx/proto/gen/go;aegisxpb";
+option java_multiple_files = true;
+option java_package = "com.aegisx.proto";
+option java_outer_classname = "AegisXProto";
+
+// ---------------------------------------------------------------------------
+// Severity + Threat Model
+// ---------------------------------------------------------------------------
+
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_LOW = 1;
+  SEVERITY_MEDIUM = 2;
+  SEVERITY_HIGH = 3;
+  SEVERITY_CRITICAL = 4;
+}
+
+enum Verdict {
+  VERDICT_UNSPECIFIED = 0;
+  VERDICT_BENIGN = 1;
+  VERDICT_SUSPICIOUS = 2;
+  VERDICT_MALICIOUS = 3;
+  VERDICT_NEEDS_REVIEW = 4;
+}
+
+// ---------------------------------------------------------------------------
+// Recon / Sentinel-Recon
+// ---------------------------------------------------------------------------
+
+message ScanRequest {
+  string target = 1;            // hostname or IPv4/IPv6
+  int32 start_port = 2;         // inclusive
+  int32 end_port = 3;           // inclusive (max 65535)
+  int32 concurrency = 4;        // dial worker pool size
+  int32 timeout_ms = 5;         // per-connection timeout
+  bool grab_banners = 6;        // enable banner grabbing
+  bool scan_udp = 7;            // best-effort UDP probe sweep
+}
+
+message OpenPort {
+  string host = 1;
+  int32 port = 2;
+  string protocol = 3;          // "tcp" | "udp"
+  string state = 4;             // "open" | "filtered"
+  string service = 5;           // identified via banner heuristics
+  string banner = 6;            // raw banner / version string
+  int64 rtt_ms = 7;             // measured round trip time
+}
+
+message ScanResponse {
+  string scan_id = 1;
+  string target = 2;
+  int64 started_at = 3;         // unix millis
+  int64 duration_ms = 4;
+  repeated OpenPort open_ports = 5;
+  uint32 ports_scanned = 6;
+}
+
+// ---------------------------------------------------------------------------
+// ShadowPot honeypot events
+// ---------------------------------------------------------------------------
+
+message HoneypotEvent {
+  string id = 1;
+  int64 timestamp = 2;          // unix millis
+  string source_ip = 3;
+  uint32 source_port = 4;
+  string protocol = 5;          // "ssh" | "http" | "mysql"
+  uint32 target_port = 6;
+  string username = 7;          // attempted credential (if protocol exposes it)
+  string password = 8;
+  string user_agent = 9;
+  string payload = 10;          // raw captured bytes (sanitized)
+  string method = 11;           // HTTP method / auth plugin, etc.
+  string path = 12;             // HTTP request path
+  map<string, string> metadata = 13; // protocol-specific key/values
+  double connection_duration_ms = 14;
+}
+
+message ScoringResult {
+  string event_id = 1;
+  float threat_score = 2;       // 0..100
+  Severity severity = 3;
+  Verdict verdict = 4;
+  repeated string related_cves = 5;
+  repeated string indicators = 6;   // matched IoCs
+  string summary = 7;
+  repeated string mitigation = 8;
+  int64 scored_at = 9;
+}
+
+// ---------------------------------------------------------------------------
+// Command + Telemetry planes (Control Center -> daemons)
+// ---------------------------------------------------------------------------
+
+message CommandFrame {
+  string id = 1;
+  string command = 2;           // "mitigate_ban_ip", "toggle_decoy", "fim_rescan", "recon_start"
+  string target = 3;            // free-form subject (IP, path, port range)
+  map<string, string> params = 4;
+  int64 issued_at = 5;
+}
+
+message CommandAck {
+  string id = 1;
+  bool accepted = 2;
+  string detail = 3;
+  int64 acked_at = 4;
+}
+
+message TelemetryFrame {
+  string node = 1;              // "shadowpot" | "sentinel-recon" | "zerotrust-fim" | "phishguard"
+  string metric = 2;            // "events_per_min", "cpu_pct", "mem_bytes", ...
+  double value = 3;
+  int64 timestamp = 4;
+  map<string, string> labels = 5;
+}
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service AegisX {
+  // Bidirectional: ShadowPot streams raw events in, PhishGuard streams scored
+  // results back to the emitter and fans them out to the Control Center.
+  rpc StreamHoneypotEvents(stream HoneypotEvent) returns (stream ScoringResult);
+
+  // Sentinel-Recon pushes discovered open ports up; the server acknowledges
+  // with a consolidated scan summary.
+  rpc SubmitScan(stream OpenPort) returns (ScanResponse);
+
+  // Control Center issues mitigation toggles; daemons acknowledge.
+  rpc Command(CommandFrame) returns (CommandAck);
+
+  // Continuous telemetry bus (system health + event rates) for the dashboard.
+  rpc StreamTelemetry(stream TelemetryFrame) returns (stream CommandFrame);
+}
+
+// ---------------------------------------------------------------------------
+// Threat Intelligence aggregation (ThreatIntelService)
+// PhishGuard aggregates OSINT feeds (AbuseIPDB, AlienVault OTX, VirusTotal,
+// ThreatFox) into a single reputation verdict for any IOC. Dashboards and
+// playbooks subscribe to the live indicator stream for early-warning.
+// ---------------------------------------------------------------------------
+
+message ThreatIntQuery {
+  string ip = 1;
+  string domain = 2;
+  string url = 3;
+  string file_hash = 4;           // SHA-256
+  bool enrich_related_cves = 5;
+}
+
+message ThreatIntTag {
+  string source = 1;              // "abuseipdb" | "otx" | "virustotal" | "threatfox" | "local"
+  string category = 2;            // "brute-force" | "c2" | "malware" | "phishing" | ...
+  string value = 3;
+  double confidence = 4;          // 0..1
+}
+
+message ThreatIntReport {
+  ThreatIntQuery query = 1;
+  float risk_score = 2;           // 0..100
+  Severity severity = 3;
+  Verdict verdict = 4;
+  repeated string sources = 5;    // feeds that answered
+  repeated ThreatIntTag tags = 6;
+  int32 report_count = 7;         // total abuse reports
+  string asn = 8;
+  string country = 9;
+  map<string, string> evidence = 10; // source -> trimmed raw response
+  repeated string related_cves = 11;
+  int64 collected_at = 12;        // unix millis
+}
+
+message IndicatorSubscription {
+  repeated string kinds = 1;      // "ip" | "domain" | "url" | "hash" (empty = all)
+}
+
+message IndicatorUpdate {
+  string indicator = 1;
+  string kind = 2;
+  double risk = 3;                // 0..100
+  Verdict verdict = 4;
+  repeated string tags = 5;
+  map<string, string> evidence = 6;
+  int64 at = 7;
+}
+
+service ThreatIntelService {
+  // Unary reputation lookup for a single IOC with cross-feed aggregation.
+  rpc GetReputation(ThreatIntQuery) returns (ThreatIntReport);
+  // Server-streaming: push live malicious indicator updates to subscribers.
+  rpc StreamIndicators(IndicatorSubscription) returns (stream IndicatorUpdate);
+}
+
+// ---------------------------------------------------------------------------
+// Kernel execution tracing (eBPFStreamer)
+// Emitted by the ZeroTrust FIM agent's eBPF probe (execve tracepoint) on the
+// protected host; consumed by the Control Center attack feed + SOAR engine.
+// ---------------------------------------------------------------------------
+
+message ExecEvent {
+  int32 pid = 1;
+  int32 ppid = 2;
+  string comm = 3;
+  string exe = 4;
+  repeated string argv = 5;
+  string user = 6;
+  string uid = 7;
+  int64 start_ns = 8;
+  bool anomaly = 9;               // heuristics flagged this execution
+  string anomaly_type = 10;       // "unlinked" | "reverse_shell" | "privilege_escalation" | ""
+  string detail = 11;
+  string node = 12;               // host identity
+}
+
+message ExecStreamRequest {
+  bool all_processes = 1;         // stream every exec (default: anomalies only)
+  repeated string watch_comm = 2; // e.g. ["bash","sh","nc","python3","curl"]
+  repeated string watch_user = 3; // empty = all users
+  bool include_detailed_argv = 4; // full argv list (default true)
+}
+
+service eBPFStreamer {
+  // Server-streaming kernel exec telemetry.
+  rpc StreamExecEvents(ExecStreamRequest) returns (stream ExecEvent);
+}
+
+// ---------------------------------------------------------------------------
+// SOAR automation (SOARPlaybookService)
+// PhishGuard evaluates each scored event against enabled playbooks. On a
+// trigger match it executes the action chain: firewall block (enforced by
+// ShadowPot via nftables/iptables), script execution, incident report, etc.
+// ---------------------------------------------------------------------------
+
+message PlaybookTrigger {
+  Severity min_severity = 1;
+  Verdict min_verdict = 2;
+  repeated string indicator_tags = 3; // any-of match on ScoringResult.indicators
+  string protocol = 4;                // exact protocol match ("" = any)
+  string condition = 5;               // expression: "threat_score >= 80 and protocol == 'ssh'"
+}
+
+message PlaybookAction {
+  string type = 1;              // firewall_block | run_script | incident_report | notify | enrich
+  string target = 2;            // IP address / script path / report subject
+  map<string, string> params = 3;
+}
+
+message Playbook {
+  string name = 1;
+  string description = 2;
+  PlaybookTrigger trigger = 3;
+  repeated PlaybookAction actions = 4;
+  bool enabled = 5;
+}
+
+message PlaybookList {
+  repeated Playbook playbooks = 1;
+}
+
+message PlaybookStatus {
+  string name = 1;
+  bool enabled = 2;
+}
+
+message RunPlaybookRequest {
+  Playbook playbook = 1;        // inline playbook (overrides configured set)
+  HoneypotEvent event = 2;
+  ScoringResult scoring = 3;
+}
+
+message RunPlaybookResponse {
+  bool executed = 1;
+  repeated string outcomes = 2;          // human-readable step results
+  map<string, string> side_effects = 3;  // firewall_rule_id / report_id / script_exit
+  bool firewall_block_issued = 4;
+  string report_id = 5;
+  int64 finished_at = 6;
+}
+
+service SOARPlaybookService {
+  // Evaluate + execute a playbook against a scored event.
+  rpc RunPlaybook(RunPlaybookRequest) returns (RunPlaybookResponse);
+  // Enumerate the loaded playbook set.
+  rpc ListPlaybooks(google.protobuf.Empty) returns (PlaybookList);
+  // Enable/disable a playbook by name.
+  rpc TogglePlaybook(PlaybookStatus) returns (PlaybookStatus);
+}

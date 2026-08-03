@@ -1,0 +1,45 @@
+# ZeroTrust FIM Guard: BLAKE3 file-integrity monitor + eBPF exec tracing + YARA memscan (Rust)
+# Build features:
+#   docker build -f Dockerfile.fim --build-arg FIM_FEATURES="--features ebpf" .
+#   docker build -f Dockerfile.fim --build-arg FIM_FEATURES="--features yara" .
+#   docker build -f Dockerfile.fim --build-arg FIM_FEATURES="--features 'ebpf yara ffi'" .
+# Default (no features) still ships: Rayon-parallel BLAKE3 baseline + /proc anomaly + /proc exec fallback.
+FROM rust:1.80-alpine AS build
+
+ARG FIM_FEATURES=""
+# Toolchain for the optional in-kernel eBPF probe + YARA bindings.
+RUN apk add --no-cache musl-dev sqlite-dev clang llvm linux-headers yara-dev
+
+WORKDIR /src
+COPY zerotrust-fim /src/zerotrust-fim
+
+# Pre-build the execve tracepoint object out-of-band so aya can load it at
+# runtime without CAP_SYS_ADMIN-era JIT tooling inside the container.
+RUN cd /src/zerotrust-fim/src/ebpf && \
+    clang -target bpf -O2 -g -Wall -Werror \
+      -I/usr/include -I/usr/include/x86_64-linux-musl \
+      -c bpf_prog.c -o execve.bpf.o 2>/dev/null || \
+    clang -target bpf -O2 -g -Wall -c bpf_prog.c -o execve.bpf.o
+
+RUN cd /src/zerotrust-fim && \
+    cargo build --release $FIM_FEATURES && \
+    mkdir -p /out && \
+    cp target/release/aegisx-fim /out/aegisx-fim && \
+    cp src/ebpf/execve.bpf.o /out/execve.bpf.o 2>/dev/null || true && \
+    cp target/release/libaegis_core.so /out/libaegis_core.so 2>/dev/null || true
+
+# Runtime image with only what the FIM needs.
+FROM alpine:3.20
+RUN apk add --no-cache libgcc sqlite-libs inotify-tools yara ca-certificates && \
+    mkdir -p /var/lib/aegisx /var/run/aegisx /opt/aegisx
+WORKDIR /app
+COPY --from=build /out/aegisx-fim /app/aegisx-fim
+COPY --from=build /out/execve.bpf.o /opt/aegisx/execve.bpf.o 2>/dev/null || true
+COPY --from=build /out/libaegis_core.so /usr/lib/libaegis_core.so 2>/dev/null || true
+COPY zerotrust-fim/include/aegis_core.h /usr/include/aegis_core.h
+
+# /proc must be visible for anomaly + exec-fallback scans; /sys/kernel/tracing
+# and /sys/kernel/debug are needed for eBPF tracepoint attachment. The runtime
+# requires the caps granted in docker-compose (CAP_BPF, CAP_SYS_PTRACE, ...).
+VOLUME ["/watch"]
+ENTRYPOINT ["/app/aegisx-fim"]
