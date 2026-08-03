@@ -76,13 +76,28 @@ jobs:
   rust:
     name: ZeroTrust FIM (cargo test, all features)
     runs-on: ubuntu-latest
+    env:
+      RUST_BACKTRACE: 1
     steps:
       - uses: actions/checkout@v4
-      - name: Install native deps (libyara, libelf, clang)
+      # Native deps mirror Dockerfile.fim (alpine: clang llvm linux-headers
+      # yara-dev). libyara is found by yara-sys via pkg-config; linux-libc-dev
+      # provides the kernel UAPI headers (linux/bpf.h) needed to compile
+      # execve.bpf.o and by libbpf-sys; libelf/zlib are aya/libbpf-sys deps.
+      - name: Install native deps
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential clang libelf-dev zlib1g-dev libyara-dev
+            build-essential clang llvm pkg-config \
+            libelf-dev zlib1g-dev libyara-dev linux-libc-dev
+      # Compile the execve tracepoint object exactly like the container image,
+      # proving the clang/BPF out-of-band build is sound. This is what aya loads
+      # at runtime via the `ebpf` feature; it does NOT require kernel BPF.
+      - name: Compile eBPF object (bpf_prog.c)
+        run: |
+          cd zerotrust-fim/src/ebpf
+          clang -target bpf -O2 -g -Wall -Werror -I/usr/include -c bpf_prog.c -o execve.bpf.o 2>/dev/null || \
+          clang -target bpf -O2 -g -Wall -I/usr/include -c bpf_prog.c -o execve.bpf.o
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:

@@ -67,34 +67,54 @@ gRPC/Protobuf contract.
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    subgraph UI["Control Center · Kotlin / Compose Desktop"]
+        Globe["3D attack globe"]
+        LogQ["regex log query · CSV/JSON export"]
+        Topo["interactive topology map"]
+    end
+
+    subgraph PH["PhishGuard AI · Python"]
+        FApi["FastAPI gateway · REST / WebSocket / gRPC"]
+        SC["threat scoring 0-100"]
+        ML["IsolationForest anomaly"]
+        TI["ThreatIntel agg (AbuseIPDB/OTX/VT/ThreatFox)"]
+        SO["YAML SOAR playbooks"]
+    end
+
+    subgraph SW["ShadowPot · Go decoy grid"]
+        DEC["SSH HTTP MySQL Redis PostgreSQL Telnet"]
+        PC["PCAP recorder"]
+        CMD["gRPC command plane (bearer-token auth)"]
+        FW["nftables / iptables ban engine"]
+    end
+
+    REC["Sentinel-Recon · Go<br/>raw SYN / TCP-connect scanner"]
+    FIM["ZeroTrust FIM · Rust<br/>Rayon BLAKE3 · eBPF execve · YARA memscan"]
+
+    FApi --> SC
+    FApi --> ML
+    FApi --> TI
+    FApi --> SO
+    SC --> SO
+    DEC --> PC
+    CMD --> FW
+
+    REC -->|"open ports · gRPC"| FApi
+    SW -->|"decoy events · gRPC"| FApi
+    FIM -- "JSON-lines unix socket" --> SW
+    FApi -->|"scored verdicts /ws/events"| UI
+    FApi -->|"Command (Bearer token)"| CMD
+    Globe --> FApi
+    LogQ --> FApi
+    Topo --> FApi
 ```
-                    ┌──────────────────────────────────────────────────────┐
-                    │  Control Center (Kotlin/Compose Desktop)            │
-                    │  3D attack globe · regex log query · topology map   │
-                    └───────▲──────────────────────────────▲──────────────┘
-                     WS /events                       gRPC Commands
-                            │                              │
-    ┌───────────────────────┴──────────────────────────────┴───────────┐
-    │                  PhishGuard AI (Python)                          │
-    │  FastAPI · scoring · ThreatIntel (AbuseIPDB/OTX/VT/ThreatFox)    │
-    │  IsolationForest anomaly · YAML SOAR playbooks · gRPC gateway     │
-    │  Prometheus /metrics                                            │
-    └───▲───────────────────────────▲────────────────────────▲─────────┘
-   gRPC │ ev + scored               │ gRPC open-ports         │ gRPC Command (blocks)
-        │                           │                         │
- ┌──────┴──────────────┐   ┌────────┴───────────┐   ┌─────────┴──────────┐
- │ ShadowPot (Go)      │   │ Sentinel-Recon (Go)│   │ ShadowPot cmd plane│
- │ SSH/HTTP/MySQL/     │   │ SYN/connect scanner│   │ nftables/iptables  │
- │ Redis/Pg/Telnet     │   │ adaptive RTT/loss  │   │ IP-ban engine      │
- │ + PCAP recorder     │   └────────────────────┘   └────────────────────┘
- └──────────▲──────────┘
-            │ Unix socket JSON-lines (shared volume)
- ┌──────────┴────────────────────────────────────┐
- │ ZeroTrust FIM (Rust)                          │
- │ Rayon-parallel BLAKE3 · eBPF execve hook ·    │
- │ YARA process-memory scan · /proc anomaly      │
- └───────────────────────────────────────────────┘
-```
+
+> **Screenshots:** the Control Center dashboard (attack globe / log query /
+> topology) is best captured after `docker compose up -d --build` and a
+> `python scripts/demo-attack.py` run. See `scripts/DEMO.md` for the guided
+> walkthrough.
 
 | Layer | Language | Responsibility |
 |---|---|---|
