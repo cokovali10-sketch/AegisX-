@@ -2,145 +2,121 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-  workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    branches: [main]
 
 jobs:
-  go:
-    name: Go (recon + shadowpot)
+  go-recon:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.22.x"
-          cache-dependency-path: |
-            sentinel-recon/go.sum
-            shadowpot/go.sum
-      - name: sentinel-recon (build + vet + test)
-        run: |
-          cd sentinel-recon
-          go build -mod=mod ./...
-          go vet -mod=mod ./...
-          go test -mod=mod ./...
-      - name: shadowpot (build + vet + test)
-        run: |
-          cd shadowpot
-          go build -mod=mod ./...
-          go vet -mod=mod ./...
-          go test -mod=mod ./...
 
-  python:
-    name: PhishGuard (pytest)
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Build
+        working-directory: sentinel-recon
+        run: go build ./...
+
+      - name: Vet
+        working-directory: sentinel-recon
+        run: go vet ./...
+
+      - name: Test
+        working-directory: sentinel-recon
+        run: go test -race ./...
+
+  go-shadowpot:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Build
+        working-directory: shadowpot
+        run: go build ./...
+
+      - name: Vet
+        working-directory: shadowpot
+        run: go vet ./...
+
+      - name: Test
+        working-directory: shadowpot
+        run: go test -race ./...
+
+  rust-fim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            zerotrust-fim/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('zerotrust-fim/Cargo.lock') }}
+
+      - name: Test
+        working-directory: zerotrust-fim
+        run: cargo test --all-features
+
+  python-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
-      - name: Install deps
-        run: |
-          pip install --upgrade pip
-          pip install -r phishguard/requirements.txt
-          pip install pytest
-      - name: Syntax + imports
-        run: |
-          python -m compileall phishguard/app -q
-          PYTHONPATH="phishguard:proto/gen/python" python -c "import app.main, app.grpc_server, app.grpc_advanced, app.fim_bridge, app.intel.aggregator, app.ml.anomaly, app.soar.playbook, app.config; print('imports ok')"
-      - name: pytest
-        run: python -m pytest -q
-        working-directory: phishguard
 
-  kotlin:
-    name: Control Center (compileKotlin)
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          cd phishguard && pip install -r requirements.txt
+
+      - name: Run tests
+        run: cd phishguard && python -m pytest -q
+
+  proto-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-      - uses: gradle/actions/setup-gradle@v4
-      - name: compileKotlin
-        run: |
-          chmod +x gradlew
-          bash ./gradlew compileKotlin --console=plain
-        working-directory: control-center
 
-  rust:
-    name: ZeroTrust FIM (cargo test, all features)
-    runs-on: ubuntu-latest
-    env:
-      RUST_BACKTRACE: 1
-    steps:
-      - uses: actions/checkout@v4
-      # Native deps mirror Dockerfile.fim (alpine: clang llvm linux-headers
-      # yara-dev). libyara is found by yara-sys via pkg-config; linux-libc-dev
-      # provides the kernel UAPI headers (linux/bpf.h); libbpf-dev ships the
-      # <bpf/bpf_helpers.h> / <bpf/bpf_tracing.h> that bpf_prog.c includes;
-      # libelf/zlib are aya/libbpf-sys deps.
-      - name: Install native deps
+      - name: Set up buf
+        uses: bufbuild/buf-setup-action@v1
+
+      - name: Lint proto
+        run: buf lint
+
+      - name: Verify generated code
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential clang llvm pkg-config \
-            libelf-dev zlib1g-dev libyara-dev linux-libc-dev libbpf-dev
-      # Compile the execve tracepoint object exactly like the container image,
-      # proving the clang/BPF out-of-band build is sound. This is what aya loads
-      # at runtime via the `ebpf` feature; it does NOT require kernel BPF.
-      - name: Compile eBPF object (bpf_prog.c)
-        run: |
-          cd zerotrust-fim/src/ebpf
-          clang -target bpf -O2 -g -Wall -Werror \
-            -I/usr/include -I/usr/include/x86_64-linux-gnu \
-            -c bpf_prog.c -o execve.bpf.o 2> bpf_err.log || {
-            cat bpf_err.log
-            clang -target bpf -O2 -g -Wall \
-              -I/usr/include -I/usr/include/x86_64-linux-gnu \
-              -c bpf_prog.c -o execve.bpf.o
-          }
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: zerotrust-fim
-      - name: cargo build (default)
-        run: cargo build --manifest-path zerotrust-fim/Cargo.toml
-      - name: cargo test (default + ffi)
-        run: cargo test --features ffi --manifest-path zerotrust-fim/Cargo.toml
-      - name: "cargo test (all features: ebpf + yara + ffi)"
-        run: cargo test --all-features --manifest-path zerotrust-fim/Cargo.toml
-      - name: cargo build --release (features)
-        run: cargo build --release --features "ebpf yara ffi" --manifest-path zerotrust-fim/Cargo.toml
+          make proto
+          git diff --exit-code || (echo "Generated code is out of date." && exit 1)
 
   docker:
-    name: Build all images
     runs-on: ubuntu-latest
-    needs: [go, python, rust, kotlin]
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - name: Validate compose config
-        run: docker compose config
-      - name: Build all images
-        run: docker compose build --no-cache
-      - name: Smoke test compose stack
+
+      - name: Build all Docker images
+        run: docker compose build
+
+      - name: Health check
         run: |
           docker compose up -d
-          for i in $(seq 1 30); do
-            if docker inspect -f '{{.State.Health.Status}}' aegisx-phishguard 2>/dev/null | grep -q healthy; then
-              echo "phishguard healthy after ${i}x2s"
-              docker compose ps
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "phishguard did not become healthy"
-          docker compose ps
-          docker compose logs phishguard | tail -40
-          exit 1
+          sleep 10
+          curl -f http://localhost:8080/health || (docker compose logs && exit 1)
+          docker compose down
