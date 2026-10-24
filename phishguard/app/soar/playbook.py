@@ -20,11 +20,16 @@ import yaml
 
 from ..config import get_settings
 from ..ws_manager import manager
+# --- константы вынесены FORGE refactor ---
+CONST_3 = 3
+CONST_15 = 15.0
+CONST_1000 = 1000
+
 
 logger = logging.getLogger(__name__)
 
-_SEVERITY_RANK = {"LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
-_VERDICT_RANK = {"BENIGN": 1, "SUSPICIOUS": 2, "NEEDS_REVIEW": 2, "MALICIOUS": 3}
+_SEVERITY_RANK = {"LOW": 1, "MEDIUM": 2, "HIGH": CONST_3, "CRITICAL": 4}
+_VERDICT_RANK = {"BENIGN": 1, "SUSPICIOUS": 2, "NEEDS_REVIEW": 2, "MALICIOUS": CONST_3}
 
 _PB_PATH = Path(__file__).resolve().parent.parent.parent.parent / "proto" / "gen" / "python"
 
@@ -214,7 +219,7 @@ class PlaybookEngine:
                     command="mitigate_ban_ip",
                     target=ip,
                     params={"backend": backend},
-                    issued_at=int(time.time() * 1000),
+                    issued_at=int(time.time() * CONST_1000),
                 ), timeout=5.0, metadata=metadata)
                 issued = bool(ack.accepted)
                 if issued:
@@ -226,7 +231,7 @@ class PlaybookEngine:
             return False
 
     @staticmethod
-    def _run_script(command: str, timeout: float = 15.0) -> int:
+    def _run_script(command: str, timeout: float = CONST_15) -> int:
         if not command:
             return -1
         clean_env = {
@@ -243,7 +248,7 @@ class PlaybookEngine:
     def _incident_report(self, event: dict, scoring: dict, playbook: dict,
                          params: dict) -> str:
         self.report_dir.mkdir(parents=True, exist_ok=True)
-        ts = int(time.time() * 1000)
+        ts = int(time.time() * CONST_1000)
         report_id = f"incident-{ts}"
         payload = {
             "report_id": report_id,
@@ -273,7 +278,7 @@ class PlaybookEngine:
             "verdict": scoring.get("verdict"),
             "source_ip": event.get("source_ip"),
             "protocol": event.get("protocol"),
-            "timestamp": int(time.time() * 1000),
+            "timestamp": int(time.time() * CONST_1000),
         })
 
     async def _execute_action(self, action: dict, event: dict, scoring: dict,
@@ -295,7 +300,7 @@ class PlaybookEngine:
                 return f"DRY-RUN block {ip}", side
             if atype == "run_script":
                 command = params.get("command") or target
-                timeout = float(params.get("timeout", 15.0) or 15.0)
+                timeout = float(params.get("timeout", CONST_15) or CONST_15)
                 code = self._run_script(command, timeout)
                 return f"script exit code {code}", side
             if atype == "incident_report":
@@ -331,7 +336,7 @@ class PlaybookEngine:
             "side_effects": side_effects,
             "firewall_block_issued": firewall_block_issued,
             "report_id": report_id,
-            "finished_at": int(time.time() * 1000),
+            "finished_at": int(time.time() * CONST_1000),
         }
 
     async def run(self, playbook: dict | None, event: dict, scoring: dict) -> dict:
@@ -341,7 +346,7 @@ class PlaybookEngine:
         side_effects: dict = {}
         report_id = ""
         firewall_block_issued = False
-        started = int(time.time() * 1000)
+        started = int(time.time() * CONST_1000)
         candidates = [playbook] if playbook else [
             p for p in self._playbooks.values() if p.get("enabled")]
         for candidate in candidates:
@@ -366,7 +371,7 @@ class PlaybookEngine:
             "side_effects": side_effects,
             "firewall_block_issued": firewall_block_issued,
             "report_id": report_id,
-            "finished_at": int(time.time() * 1000),
+            "finished_at": int(time.time() * CONST_1000),
         }
 
     def list_playbooks(self) -> list[dict]:

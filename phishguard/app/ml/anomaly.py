@@ -10,6 +10,13 @@ from __future__ import annotations
 import logging
 import math
 import time
+# --- константы вынесены FORGE refactor ---
+CONST_3 = 3.0
+CONST_4 = 4.0
+CONST_5 = 5.0
+CONST_42 = 42
+CONST_1000 = 1000.0
+
 
 logger = logging.getLogger(__name__)
 
@@ -20,17 +27,17 @@ _NUMERIC_KEYS = (
 )
 _STRING_KEYS = ("protocol", "source_ip")
 
-_PROTOCOL_ENC = {"ssh": 1.0, "http": 2.0, "https": 3.0, "mysql": 4.0,
-                 "smtp": 5.0, "ftp": 6.0, "rdp": 7.0, "telnet": 8.0}
+_PROTOCOL_ENC = {"ssh": 1.0, "http": 2.0, "https": CONST_3, "mysql": CONST_4,
+                 "smtp": CONST_5, "ftp": 6.0, "rdp": 7.0, "telnet": 8.0}
 
 
 def _ip_enc(ip: str) -> float:
     """Deterministic numeric encoding of an IPv4 literal (0.0 when unusable)."""
     try:
         parts = [int(p) for p in str(ip).split(".")]
-        if len(parts) != 4:
+        if len(parts) != CONST_4:
             return 0.0
-        return parts[0] * 1000000 + parts[1] * 1000 + parts[2] + parts[3] / 1000.0
+        return parts[0] * 1000000 + parts[1] * CONST_1000 + parts[2] + parts[CONST_3] / CONST_1000
     except (TypeError, ValueError):
         return 0.0
 
@@ -69,14 +76,14 @@ class AnomalyDetector:
             return
         self._np = np
         try:
-            rng = np.random.default_rng(42)
+            rng = np.random.default_rng(CONST_42)
             baseline = rng.normal(loc=0.0, scale=1.0,
                                   size=(self._baseline_samples, len(_NUMERIC_KEYS)))
             self._baseline = baseline
             self._model = IsolationForest(
                 n_estimators=self._n_estimators,
                 contamination=self._contamination,
-                random_state=42,
+                random_state=CONST_42,
             )
             self._model.fit(baseline)
             self.available = True
@@ -114,7 +121,7 @@ class AnomalyDetector:
             raw = float(self._model.score_samples(x)[0])
             anomaly = raw < -0.15
             score = 1.0 / (1.0 + math.exp(-raw * 2.0))
-            return anomaly, round(score, 4)
+            return anomaly, round(score, CONST_4)
         except Exception as exc:
             logger.debug("isolation forest scoring failed: %s", exc)
             return False, 0.0
@@ -147,7 +154,7 @@ class AnomalyDetector:
             except (TypeError, ValueError):
                 continue
             stats = self._rolling[k]
-            if stats["n"] < 5:
+            if stats["n"] < CONST_5:
                 continue
             var = stats["m2"] / (stats["n"] - 1)
             if var <= 1e-9:
@@ -155,8 +162,8 @@ class AnomalyDetector:
             z = abs(x - stats["mean"]) / math.sqrt(var)
             max_z = max(max_z, z)
         anomaly = max_z >= 2.5
-        score = max(0.0, min(1.0, max_z / 5.0))
-        return anomaly, round(score, 4)
+        score = max(0.0, min(1.0, max_z / CONST_5))
+        return anomaly, round(score, CONST_4)
 
     # ------------------------------------------------------------------- public
     def analyze(self, feats: dict) -> dict:

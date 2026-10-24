@@ -38,6 +38,10 @@ from .grpc_advanced import (  # noqa: E402
 from .intel.threat_intel import ThreatIntel  # noqa: E402
 from .intel.vectorstore import VectorStore  # noqa: E402
 from .ws_manager import manager  # noqa: E402
+# --- константы вынесены FORGE refactor ---
+CONST_20 = 20.0
+CONST_1000 = 1000
+
 
 logger = logging.getLogger(__name__)
 
@@ -59,10 +63,10 @@ def score_attack_event(event: pb.HoneypotEvent, intel: ThreatIntel) -> pb.Scorin
     """Score one decoy-captured event into a full threat assessment."""
     # Base weight: protocol-agnostic brute-force / auth probing is at least
     # suspicious; credential-bearing attempts raise it further.
-    base = 20.0
+    base = CONST_20
     indicators: list[str] = [f"protocol:{event.protocol}"]
     if event.username or event.password:
-        base += 20
+        base += CONST_20
         indicators.append("credential-attempt")
     if event.metadata.get("auth_plugin"):
         base += 10
@@ -95,7 +99,7 @@ def score_attack_event(event: pb.HoneypotEvent, intel: ThreatIntel) -> pb.Scorin
     # Cached OSINT reputation for the source IP (cache-first, short timeout).
     reputation = aggregator.aggregate_sync({"ip": event.source_ip})
     if reputation["verdict"] == "MALICIOUS":
-        base += 20
+        base += CONST_20
         indicators.append("osint:" + ",".join(reputation.get("sources") or []))
 
     total = max(0.0, min(100.0, base))
@@ -122,7 +126,7 @@ def score_attack_event(event: pb.HoneypotEvent, intel: ThreatIntel) -> pb.Scorin
         indicators=list(dict.fromkeys(indicators + intel_result.indicators)),
         summary=f"{event.protocol} interaction from {event.source_ip} -> {verdict}",
         mitigation=mitigation,
-        scored_at=int(time.time() * 1000),
+        scored_at=int(time.time() * CONST_1000),
     )
 
 
@@ -150,7 +154,7 @@ class AegisXServicer(pb_grpc.AegisXServicer):
                     verdict=pb.VERDICT_NEEDS_REVIEW,
                     indicators=["scoring-error"],
                     summary=f"scoring error: {exc}",
-                    scored_at=int(time.time() * 1000),
+                    scored_at=int(time.time() * CONST_1000),
                 )
 
             # Ingest into the vector store for future similarity lookups.
@@ -180,7 +184,7 @@ class AegisXServicer(pb_grpc.AegisXServicer):
                 "indicators": list(result.indicators),
                 "related_cves": list(result.related_cves),
                 "mitigation": list(result.mitigation),
-                "timestamp": int(time.time() * 1000),
+                "timestamp": int(time.time() * CONST_1000),
             })
 
             yield result
@@ -188,7 +192,7 @@ class AegisXServicer(pb_grpc.AegisXServicer):
     async def SubmitScan(self, request_iterator, context):  # noqa: N802
         count = 0
         open_ports = []
-        started = int(time.time() * 1000)
+        started = int(time.time() * CONST_1000)
         async for port in request_iterator:
             count += 1
             if port.state == "open":
@@ -197,7 +201,7 @@ class AegisXServicer(pb_grpc.AegisXServicer):
             scan_id=f"scan-{started}",
             target=open_ports[0].host if open_ports else "",
             started_at=started,
-            duration_ms=int(time.time() * 1000) - started,
+            duration_ms=int(time.time() * CONST_1000) - started,
             ports_scanned=count,
         )
         for p in open_ports:
@@ -220,7 +224,7 @@ class AegisXServicer(pb_grpc.AegisXServicer):
             id=request.id,
             accepted=True,
             detail=f"command '{request.command}' accepted for orchestration",
-            acked_at=int(time.time() * 1000),
+            acked_at=int(time.time() * CONST_1000),
         )
 
     async def StreamTelemetry(self, request_iterator, context):  # noqa: N802

@@ -17,6 +17,10 @@ from dataclasses import dataclass, field
 
 from ..analyzers.score import severity_for, verdict_for
 from ..config import get_settings
+# --- константы вынесены FORGE refactor ---
+CONST_300 = 300
+CONST_1000 = 1000
+
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +31,7 @@ FEED_WEIGHTS: dict[str, float] = {
     "threatfox": 0.1,
 }
 
-_EVIDENCE_CAP = 300
+_EVIDENCE_CAP = CONST_300
 _RETRIES = 2
 _TIMEOUT = 4.0
 
@@ -62,7 +66,7 @@ class ThreatIntelAggregator:
         self.otx_base = s.otx_base
         self.threatfox_url = s.threatfox_url
         self.cve_enrich = s.aggregator_cve_enrich
-        self.ttl = float(s.ttl_seconds or 300)
+        self.ttl = float(s.ttl_seconds or CONST_300)
         self.timeout = _TIMEOUT
         self._cache: dict[str, tuple[float, dict]] = {}
 
@@ -265,7 +269,7 @@ class ThreatIntelAggregator:
             "country": country,
             "evidence": evidence,
             "related_cves": related_cves,
-            "collected_at": int(time.time() * 1000),
+            "collected_at": int(time.time() * CONST_1000),
         }
 
     def aggregate_sync(self, query: dict) -> dict:
@@ -304,5 +308,5 @@ class ThreatIntelAggregator:
                 "verdict": min_verdict,
                 "tags": tags,
                 "evidence": dict(report.get("evidence", {})),
-                "at": report.get("collected_at", int(now * 1000)),
+                "at": report.get("collected_at", int(now * CONST_1000)),
             }

@@ -37,6 +37,12 @@ if str(_PROTO_GEN) not in sys.path:
 import grpc  # noqa: E402
 import aegisx_pb2 as pb  # noqa: E402
 import aegisx_pb2_grpc as pb_grpc  # noqa: E402
+# --- константы вынесены FORGE refactor ---
+CONST_5 = 5.0
+CONST_8 = 8
+CONST_22 = 22
+CONST_8080 = 8080
+
 
 PHISHGUARD = os.environ.get("AEGISX_GRPC_ADDR", "localhost:50051")
 SHADOWPOT_CMD = os.environ.get("AEGISX_SHADOWPOT_CMD", "localhost:50053")
@@ -59,7 +65,7 @@ def _event(proto: str, port: int, username: str = "", password: str = "",
            extra: dict | None = None) -> pb.HoneypotEvent:
     md = dict(extra or {})
     return pb.HoneypotEvent(
-        id=f"demo-{uuid.uuid4().hex[:8]}",
+        id=f"demo-{uuid.uuid4().hex[:CONST_8]}",
         timestamp=_ts(),
         source_ip=ATTACKER,
         source_port=40000 + (port % 2000),
@@ -79,16 +85,16 @@ def _event(proto: str, port: int, username: str = "", password: str = "",
 def build_campaign() -> list[pb.HoneypotEvent]:
     """A small, realistic multi-protocol attacker campaign from one source IP."""
     return [
-        _event("ssh", 22, username="root", password="toor",
+        _event("ssh", CONST_22, username="root", password="toor",
                payload="SSH-2.0-OpenSSH_9.6p1"),
-        _event("ssh", 22, username="admin", password="admin123",
+        _event("ssh", CONST_22, username="admin", password="admin123",
                payload="SSH-2.0-OpenSSH_9.6p1"),
-        _event("ssh", 22, username="root", password="Passw0rd!",
+        _event("ssh", CONST_22, username="root", password="Passw0rd!",
                payload="SSH-2.0-OpenSSH_9.6p1"),
-        _event("http", 8080, path="/admin/login.php", method="POST",
+        _event("http", CONST_8080, path="/admin/login.php", method="POST",
                payload="username=admin&password=letmein",
                extra={"auth_plugin": ""}),
-        _event("http", 8080, path="/.env", method="GET",
+        _event("http", CONST_8080, path="/.env", method="GET",
                payload="GET /.env HTTP/1.1", extra={"auth_plugin": ""}),
         _event("mysql", 3306, username="root", password="",
                payload="\x00\x00\x00\x03mysql_native_password",
@@ -177,10 +183,10 @@ def phase_command_plane() -> dict:
     with grpc.insecure_channel(SHADOWPOT_CMD) as channel:
         stub = pb_grpc.AegisXStub(channel)
         frame = pb.CommandFrame(
-            id=f"demo-{uuid.uuid4().hex[:8]}", command="status",
+            id=f"demo-{uuid.uuid4().hex[:CONST_8]}", command="status",
             target="", params={}, issued_at=_ts())
         try:
-            ack = stub.Command(frame, timeout=5.0, metadata=_meta())
+            ack = stub.Command(frame, timeout=CONST_5, metadata=_meta())
             if TOKEN:
                 result["unauthenticated_rejected"] = not bool(ack.accepted)
             else:
@@ -192,7 +198,7 @@ def phase_command_plane() -> dict:
             result["unauthenticated_detail"] = exc.details() or exc.code().name
             print(f"  unauthenticated status rejected: {exc.details() or exc.code().name}")
         if TOKEN:
-            ack = stub.Command(frame, timeout=5.0,
+            ack = stub.Command(frame, timeout=CONST_5,
                                metadata=(("authorization", f"Bearer {TOKEN}"),))
             result["authenticated_accepted"] = bool(ack.accepted)
             print(f"  authenticated status accepted={ack.accepted} ({ack.detail})")

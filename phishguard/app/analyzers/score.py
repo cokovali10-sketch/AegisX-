@@ -8,24 +8,31 @@ specific signal.
 from __future__ import annotations
 
 from ..models import RiskReport, Severity, UrgencySignal, Verdict, WhoIsSignal
+# --- константы вынесены FORGE refactor ---
+CONST_15 = 15
+CONST_25 = 25
+CONST_35 = 35
+CONST_60 = 60
+CONST_90 = 90
+
 
 # Severity thresholds (inclusive ranges).
 def severity_for(score: float) -> Severity:
     if score >= 80:
         return Severity.CRITICAL
-    if score >= 60:
+    if score >= CONST_60:
         return Severity.HIGH
-    if score >= 35:
+    if score >= CONST_35:
         return Severity.MEDIUM
     return Severity.LOW
 
 
 def verdict_for(score: float, has_signals: bool) -> Verdict:
-    if score >= 60:
+    if score >= CONST_60:
         return Verdict.MALICIOUS
-    if score >= 35:
+    if score >= CONST_35:
         return Verdict.SUSPICIOUS
-    if score >= 15 and has_signals:
+    if score >= CONST_15 and has_signals:
         return Verdict.NEEDS_REVIEW
     return Verdict.BENIGN
 
@@ -56,17 +63,17 @@ def compose(
 
     # --- Typosquat (max 30) ---
     if typosquat_count > 0:
-        score += min(30, 15 * typosquat_count)
+        score += min(30, CONST_15 * typosquat_count)
 
     # --- Domain age (max 25) ---
     if whois and whois.age_days is not None and not whois.error:
         if whois.age_days <= 14:
-            score += 25
-        elif whois.age_days <= 90:
-            score += 15
+            score += CONST_25
+        elif whois.age_days <= CONST_90:
+            score += CONST_15
 
     # --- Urgency language (max 25) ---
-    score += urgency_score * 25
+    score += urgency_score * CONST_25
 
     # --- Raw IP targeting (max 20) ---
     if raw_ip:
@@ -82,7 +89,7 @@ def compose(
     mitigation = build_mitigation(
         score=score,
         typosquat_count=typosquat_count,
-        young_domain=bool(whois and whois.age_days is not None and whois.age_days <= 90),
+        young_domain=bool(whois and whois.age_days is not None and whois.age_days <= CONST_90),
         raw_ip=raw_ip,
     )
 
@@ -107,10 +114,10 @@ def build_mitigation(
 ) -> list[str]:
     steps: list[str] = []
 
-    if score >= 60:
+    if score >= CONST_60:
         steps.append("Block the URL/domain at the edge (WAF + DNS sinkhole).")
         steps.append("Flag the sending account and quarantine the message for SOC review.")
-    if score >= 35:
+    if score >= CONST_35:
         steps.append("Alert the SOC; preserve full headers and payload as IOC evidence.")
     if typosquat_count > 0:
         steps.append(

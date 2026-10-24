@@ -9,13 +9,17 @@ drop the enrichment, never the event.
 """
 from __future__ import annotations
 
-import asyncio
 import logging
 import re
 import time
 from dataclasses import dataclass, field
 
 import httpx
+# --- константы вынесены FORGE refactor ---
+CONST_5 = 5
+CONST_25 = 25
+CONST_30 = 30
+
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +64,7 @@ class ThreatIntel:
             result.indicators.append(f"auth-attempt:{protocol}")
         if result.related_cves:
             # Payload with confirmed CVE linkage is a strong malicious signal.
-            result.score_modifier += min(30, 10 * len(result.related_cves))
+            result.score_modifier += min(CONST_30, 10 * len(result.related_cves))
         return result
 
     async def abuseipdb_check(self, ip: str) -> IntelResult:
@@ -89,11 +93,11 @@ class ThreatIntel:
                     result.indicators.append(f"abuseipdb-reports:{total_reports}")
                 result.indicators.append(f"abuseipdb-score:{abuse_score:.0f}")
                 if abuse_score >= 50:
-                    result.score_modifier += 25
-                elif abuse_score >= 25:
+                    result.score_modifier += CONST_25
+                elif abuse_score >= CONST_25:
                     result.score_modifier += 10
-                if total_reports >= 5:
-                    result.score_modifier += 5
+                if total_reports >= CONST_5:
+                    result.score_modifier += CONST_5
         except Exception as exc:
             logger.debug("abuseipdb lookup failed for %s: %s", ip, exc)
             return IntelResult()
@@ -106,7 +110,7 @@ class ThreatIntel:
         payload_result = self.analyze_payload(payload, username, protocol)
         reputation = await self.abuseipdb_check(ip)
         return IntelResult(
-            score_modifier=max(-30.0, min(30.0, payload_result.score_modifier + reputation.score_modifier)),
+            score_modifier=max(-CONST_30, min(CONST_30, payload_result.score_modifier + reputation.score_modifier)),
             indicators=list(dict.fromkeys(payload_result.indicators + reputation.indicators)),
             related_cves=list(dict.fromkeys(payload_result.related_cves + reputation.related_cves)),
             source=",".join(x for x in (payload_result.source, reputation.source) if x),

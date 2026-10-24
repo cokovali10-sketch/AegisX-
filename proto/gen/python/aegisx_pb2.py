@@ -9,6 +9,15 @@ from google.protobuf import descriptor_pool as _descriptor_pool
 from google.protobuf import runtime_version as _runtime_version
 from google.protobuf import symbol_database as _symbol_database
 from google.protobuf.internal import builder as _builder
+# --- константы вынесены FORGE refactor ---
+CONST_843 = 843
+CONST_1202 = 1202
+CONST_1247 = 1247
+CONST_1507 = 1507
+CONST_2056 = 2056
+CONST_2103 = 2103
+CONST_3632 = 3632
+
 _runtime_version.ValidateProtobufRuntimeVersion(
     _runtime_version.Domain.PUBLIC,
     7,
@@ -22,7 +31,6 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
-from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
 
 
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0c\x61\x65gisx.proto\x12\x06\x61\x65gisx\x1a\x1bgoogle/protobuf/empty.proto\"\x94\x01\n\x0bScanRequest\x12\x0e\n\x06target\x18\x01 \x01(\t\x12\x12\n\nstart_port\x18\x02 \x01(\x05\x12\x10\n\x08\x65nd_port\x18\x03 \x01(\x05\x12\x13\n\x0b\x63oncurrency\x18\x04 \x01(\x05\x12\x12\n\ntimeout_ms\x18\x05 \x01(\x05\x12\x14\n\x0cgrab_banners\x18\x06 \x01(\x08\x12\x10\n\x08scan_udp\x18\x07 \x01(\x08\"x\n\x08OpenPort\x12\x0c\n\x04host\x18\x01 \x01(\t\x12\x0c\n\x04port\x18\x02 \x01(\x05\x12\x10\n\x08protocol\x18\x03 \x01(\t\x12\r\n\x05state\x18\x04 \x01(\t\x12\x0f\n\x07service\x18\x05 \x01(\t\x12\x0e\n\x06\x62\x61nner\x18\x06 \x01(\t\x12\x0e\n\x06rtt_ms\x18\x07 \x01(\x03\"\x95\x01\n\x0cScanResponse\x12\x0f\n\x07scan_id\x18\x01 \x01(\t\x12\x0e\n\x06target\x18\x02 \x01(\t\x12\x12\n\nstarted_at\x18\x03 \x01(\x03\x12\x13\n\x0b\x64uration_ms\x18\x04 \x01(\x03\x12$\n\nopen_ports\x18\x05 \x03(\x0b\x32\x10.aegisx.OpenPort\x12\x15\n\rports_scanned\x18\x06 \x01(\r\"\xec\x02\n\rHoneypotEvent\x12\n\n\x02id\x18\x01 \x01(\t\x12\x11\n\ttimestamp\x18\x02 \x01(\x03\x12\x11\n\tsource_ip\x18\x03 \x01(\t\x12\x13\n\x0bsource_port\x18\x04 \x01(\r\x12\x10\n\x08protocol\x18\x05 \x01(\t\x12\x13\n\x0btarget_port\x18\x06 \x01(\r\x12\x10\n\x08username\x18\x07 \x01(\t\x12\x10\n\x08password\x18\x08 \x01(\t\x12\x12\n\nuser_agent\x18\t \x01(\t\x12\x0f\n\x07payload\x18\n \x01(\t\x12\x0e\n\x06method\x18\x0b \x01(\t\x12\x0c\n\x04path\x18\x0c \x01(\t\x12\x35\n\x08metadata\x18\r \x03(\x0b\x32#.aegisx.HoneypotEvent.MetadataEntry\x12\x1e\n\x16\x63onnection_duration_ms\x18\x0e \x01(\x01\x1a/\n\rMetadataEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xdf\x01\n\rScoringResult\x12\x10\n\x08\x65vent_id\x18\x01 \x01(\t\x12\x14\n\x0cthreat_score\x18\x02 \x01(\x02\x12\"\n\x08severity\x18\x03 \x01(\x0e\x32\x10.aegisx.Severity\x12 \n\x07verdict\x18\x04 \x01(\x0e\x32\x0f.aegisx.Verdict\x12\x14\n\x0crelated_cves\x18\x05 \x03(\t\x12\x12\n\nindicators\x18\x06 \x03(\t\x12\x0f\n\x07summary\x18\x07 \x01(\t\x12\x12\n\nmitigation\x18\x08 \x03(\t\x12\x11\n\tscored_at\x18\t \x01(\x03\"\xaf\x01\n\x0c\x43ommandFrame\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0f\n\x07\x63ommand\x18\x02 \x01(\t\x12\x0e\n\x06target\x18\x03 \x01(\t\x12\x30\n\x06params\x18\x04 \x03(\x0b\x32 .aegisx.CommandFrame.ParamsEntry\x12\x11\n\tissued_at\x18\x05 \x01(\x03\x1a-\n\x0bParamsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"L\n\nCommandAck\x12\n\n\x02id\x18\x01 \x01(\t\x12\x10\n\x08\x61\x63\x63\x65pted\x18\x02 \x01(\x08\x12\x0e\n\x06\x64\x65tail\x18\x03 \x01(\t\x12\x10\n\x08\x61\x63ked_at\x18\x04 \x01(\x03\"\xb3\x01\n\x0eTelemetryFrame\x12\x0c\n\x04node\x18\x01 \x01(\t\x12\x0e\n\x06metric\x18\x02 \x01(\t\x12\r\n\x05value\x18\x03 \x01(\x01\x12\x11\n\ttimestamp\x18\x04 \x01(\x03\x12\x32\n\x06labels\x18\x05 \x03(\x0b\x32\".aegisx.TelemetryFrame.LabelsEntry\x1a-\n\x0bLabelsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"i\n\x0eThreatIntQuery\x12\n\n\x02ip\x18\x01 \x01(\t\x12\x0e\n\x06\x64omain\x18\x02 \x01(\t\x12\x0b\n\x03url\x18\x03 \x01(\t\x12\x11\n\tfile_hash\x18\x04 \x01(\t\x12\x1b\n\x13\x65nrich_related_cves\x18\x05 \x01(\x08\"S\n\x0cThreatIntTag\x12\x0e\n\x06source\x18\x01 \x01(\t\x12\x10\n\x08\x63\x61tegory\x18\x02 \x01(\t\x12\r\n\x05value\x18\x03 \x01(\t\x12\x12\n\nconfidence\x18\x04 \x01(\x01\"\x91\x03\n\x0fThreatIntReport\x12%\n\x05query\x18\x01 \x01(\x0b\x32\x16.aegisx.ThreatIntQuery\x12\x12\n\nrisk_score\x18\x02 \x01(\x02\x12\"\n\x08severity\x18\x03 \x01(\x0e\x32\x10.aegisx.Severity\x12 \n\x07verdict\x18\x04 \x01(\x0e\x32\x0f.aegisx.Verdict\x12\x0f\n\x07sources\x18\x05 \x03(\t\x12\"\n\x04tags\x18\x06 \x03(\x0b\x32\x14.aegisx.ThreatIntTag\x12\x14\n\x0creport_count\x18\x07 \x01(\x05\x12\x0b\n\x03\x61sn\x18\x08 \x01(\t\x12\x0f\n\x07\x63ountry\x18\t \x01(\t\x12\x37\n\x08\x65vidence\x18\n \x03(\x0b\x32%.aegisx.ThreatIntReport.EvidenceEntry\x12\x14\n\x0crelated_cves\x18\x0b \x03(\t\x12\x14\n\x0c\x63ollected_at\x18\x0c \x01(\x03\x1a/\n\rEvidenceEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"&\n\x15IndicatorSubscription\x12\r\n\x05kinds\x18\x01 \x03(\t\"\xe6\x01\n\x0fIndicatorUpdate\x12\x11\n\tindicator\x18\x01 \x01(\t\x12\x0c\n\x04kind\x18\x02 \x01(\t\x12\x0c\n\x04risk\x18\x03 \x01(\x01\x12 \n\x07verdict\x18\x04 \x01(\x0e\x32\x0f.aegisx.Verdict\x12\x0c\n\x04tags\x18\x05 \x03(\t\x12\x37\n\x08\x65vidence\x18\x06 \x03(\x0b\x32%.aegisx.IndicatorUpdate.EvidenceEntry\x12\n\n\x02\x61t\x18\x07 \x01(\x03\x1a/\n\rEvidenceEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xc1\x01\n\tExecEvent\x12\x0b\n\x03pid\x18\x01 \x01(\x05\x12\x0c\n\x04ppid\x18\x02 \x01(\x05\x12\x0c\n\x04\x63omm\x18\x03 \x01(\t\x12\x0b\n\x03\x65xe\x18\x04 \x01(\t\x12\x0c\n\x04\x61rgv\x18\x05 \x03(\t\x12\x0c\n\x04user\x18\x06 \x01(\t\x12\x0b\n\x03uid\x18\x07 \x01(\t\x12\x10\n\x08start_ns\x18\x08 \x01(\x03\x12\x0f\n\x07\x61nomaly\x18\t \x01(\x08\x12\x14\n\x0c\x61nomaly_type\x18\n \x01(\t\x12\x0e\n\x06\x64\x65tail\x18\x0b \x01(\t\x12\x0c\n\x04node\x18\x0c \x01(\t\"q\n\x11\x45xecStreamRequest\x12\x15\n\rall_processes\x18\x01 \x01(\x08\x12\x12\n\nwatch_comm\x18\x02 \x03(\t\x12\x12\n\nwatch_user\x18\x03 \x03(\t\x12\x1d\n\x15include_detailed_argv\x18\x04 \x01(\x08\"\x9c\x01\n\x0fPlaybookTrigger\x12&\n\x0cmin_severity\x18\x01 \x01(\x0e\x32\x10.aegisx.Severity\x12$\n\x0bmin_verdict\x18\x02 \x01(\x0e\x32\x0f.aegisx.Verdict\x12\x16\n\x0eindicator_tags\x18\x03 \x03(\t\x12\x10\n\x08protocol\x18\x04 \x01(\t\x12\x11\n\tcondition\x18\x05 \x01(\t\"\x91\x01\n\x0ePlaybookAction\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x0e\n\x06target\x18\x02 \x01(\t\x12\x32\n\x06params\x18\x03 \x03(\x0b\x32\".aegisx.PlaybookAction.ParamsEntry\x1a-\n\x0bParamsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\x91\x01\n\x08Playbook\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x02 \x01(\t\x12(\n\x07trigger\x18\x03 \x01(\x0b\x32\x17.aegisx.PlaybookTrigger\x12\'\n\x07\x61\x63tions\x18\x04 \x03(\x0b\x32\x16.aegisx.PlaybookAction\x12\x0f\n\x07\x65nabled\x18\x05 \x01(\x08\"3\n\x0cPlaybookList\x12#\n\tplaybooks\x18\x01 \x03(\x0b\x32\x10.aegisx.Playbook\"/\n\x0ePlaybookStatus\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07\x65nabled\x18\x02 \x01(\x08\"\x86\x01\n\x12RunPlaybookRequest\x12\"\n\x08playbook\x18\x01 \x01(\x0b\x32\x10.aegisx.Playbook\x12$\n\x05\x65vent\x18\x02 \x01(\x0b\x32\x15.aegisx.HoneypotEvent\x12&\n\x07scoring\x18\x03 \x01(\x0b\x32\x15.aegisx.ScoringResult\"\xf8\x01\n\x13RunPlaybookResponse\x12\x10\n\x08\x65xecuted\x18\x01 \x01(\x08\x12\x10\n\x08outcomes\x18\x02 \x03(\t\x12\x42\n\x0cside_effects\x18\x03 \x03(\x0b\x32,.aegisx.RunPlaybookResponse.SideEffectsEntry\x12\x1d\n\x15\x66irewall_block_issued\x18\x04 \x01(\x08\x12\x11\n\treport_id\x18\x05 \x01(\t\x12\x13\n\x0b\x66inished_at\x18\x06 \x01(\x03\x1a\x32\n\x10SideEffectsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01*u\n\x08Severity\x12\x18\n\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x10\n\x0cSEVERITY_LOW\x10\x01\x12\x13\n\x0fSEVERITY_MEDIUM\x10\x02\x12\x11\n\rSEVERITY_HIGH\x10\x03\x12\x15\n\x11SEVERITY_CRITICAL\x10\x04*\x7f\n\x07Verdict\x12\x17\n\x13VERDICT_UNSPECIFIED\x10\x00\x12\x12\n\x0eVERDICT_BENIGN\x10\x01\x12\x16\n\x12VERDICT_SUSPICIOUS\x10\x02\x12\x15\n\x11VERDICT_MALICIOUS\x10\x03\x12\x18\n\x14VERDICT_NEEDS_REVIEW\x10\x04\x32\x84\x02\n\x06\x41\x65gisX\x12H\n\x14StreamHoneypotEvents\x12\x15.aegisx.HoneypotEvent\x1a\x15.aegisx.ScoringResult(\x01\x30\x01\x12\x36\n\nSubmitScan\x12\x10.aegisx.OpenPort\x1a\x14.aegisx.ScanResponse(\x01\x12\x33\n\x07\x43ommand\x12\x14.aegisx.CommandFrame\x1a\x12.aegisx.CommandAck\x12\x43\n\x0fStreamTelemetry\x12\x16.aegisx.TelemetryFrame\x1a\x14.aegisx.CommandFrame(\x01\x30\x01\x32\xa4\x01\n\x12ThreatIntelService\x12@\n\rGetReputation\x12\x16.aegisx.ThreatIntQuery\x1a\x17.aegisx.ThreatIntReport\x12L\n\x10StreamIndicators\x12\x1d.aegisx.IndicatorSubscription\x1a\x17.aegisx.IndicatorUpdate0\x01\x32R\n\x0c\x65\x42PFStreamer\x12\x42\n\x10StreamExecEvents\x12\x19.aegisx.ExecStreamRequest\x1a\x11.aegisx.ExecEvent0\x01\x32\xde\x01\n\x13SOARPlaybookService\x12\x46\n\x0bRunPlaybook\x12\x1a.aegisx.RunPlaybookRequest\x1a\x1b.aegisx.RunPlaybookResponse\x12=\n\rListPlaybooks\x12\x16.google.protobuf.Empty\x1a\x14.aegisx.PlaybookList\x12@\n\x0eTogglePlaybook\x12\x16.aegisx.PlaybookStatus\x1a\x16.aegisx.PlaybookStatusB?\n\x10\x63om.aegisx.protoB\x0b\x41\x65gisXProtoP\x01Z\x1c\x61\x65gisx/proto/gen/go;aegisxpbb\x06proto3')
@@ -58,35 +66,35 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_SCANRESPONSE']._serialized_start=327
   _globals['_SCANRESPONSE']._serialized_end=476
   _globals['_HONEYPOTEVENT']._serialized_start=479
-  _globals['_HONEYPOTEVENT']._serialized_end=843
+  _globals['_HONEYPOTEVENT']._serialized_end=CONST_843
   _globals['_HONEYPOTEVENT_METADATAENTRY']._serialized_start=796
-  _globals['_HONEYPOTEVENT_METADATAENTRY']._serialized_end=843
+  _globals['_HONEYPOTEVENT_METADATAENTRY']._serialized_end=CONST_843
   _globals['_SCORINGRESULT']._serialized_start=846
   _globals['_SCORINGRESULT']._serialized_end=1069
   _globals['_COMMANDFRAME']._serialized_start=1072
-  _globals['_COMMANDFRAME']._serialized_end=1247
-  _globals['_COMMANDFRAME_PARAMSENTRY']._serialized_start=1202
-  _globals['_COMMANDFRAME_PARAMSENTRY']._serialized_end=1247
+  _globals['_COMMANDFRAME']._serialized_end=CONST_1247
+  _globals['_COMMANDFRAME_PARAMSENTRY']._serialized_start=CONST_1202
+  _globals['_COMMANDFRAME_PARAMSENTRY']._serialized_end=CONST_1247
   _globals['_COMMANDACK']._serialized_start=1249
   _globals['_COMMANDACK']._serialized_end=1325
   _globals['_TELEMETRYFRAME']._serialized_start=1328
-  _globals['_TELEMETRYFRAME']._serialized_end=1507
+  _globals['_TELEMETRYFRAME']._serialized_end=CONST_1507
   _globals['_TELEMETRYFRAME_LABELSENTRY']._serialized_start=1462
-  _globals['_TELEMETRYFRAME_LABELSENTRY']._serialized_end=1507
+  _globals['_TELEMETRYFRAME_LABELSENTRY']._serialized_end=CONST_1507
   _globals['_THREATINTQUERY']._serialized_start=1509
   _globals['_THREATINTQUERY']._serialized_end=1614
   _globals['_THREATINTTAG']._serialized_start=1616
   _globals['_THREATINTTAG']._serialized_end=1699
   _globals['_THREATINTREPORT']._serialized_start=1702
-  _globals['_THREATINTREPORT']._serialized_end=2103
-  _globals['_THREATINTREPORT_EVIDENCEENTRY']._serialized_start=2056
-  _globals['_THREATINTREPORT_EVIDENCEENTRY']._serialized_end=2103
+  _globals['_THREATINTREPORT']._serialized_end=CONST_2103
+  _globals['_THREATINTREPORT_EVIDENCEENTRY']._serialized_start=CONST_2056
+  _globals['_THREATINTREPORT_EVIDENCEENTRY']._serialized_end=CONST_2103
   _globals['_INDICATORSUBSCRIPTION']._serialized_start=2105
   _globals['_INDICATORSUBSCRIPTION']._serialized_end=2143
   _globals['_INDICATORUPDATE']._serialized_start=2146
   _globals['_INDICATORUPDATE']._serialized_end=2376
-  _globals['_INDICATORUPDATE_EVIDENCEENTRY']._serialized_start=2056
-  _globals['_INDICATORUPDATE_EVIDENCEENTRY']._serialized_end=2103
+  _globals['_INDICATORUPDATE_EVIDENCEENTRY']._serialized_start=CONST_2056
+  _globals['_INDICATORUPDATE_EVIDENCEENTRY']._serialized_end=CONST_2103
   _globals['_EXECEVENT']._serialized_start=2379
   _globals['_EXECEVENT']._serialized_end=2572
   _globals['_EXECSTREAMREQUEST']._serialized_start=2574
@@ -95,8 +103,8 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_PLAYBOOKTRIGGER']._serialized_end=2846
   _globals['_PLAYBOOKACTION']._serialized_start=2849
   _globals['_PLAYBOOKACTION']._serialized_end=2994
-  _globals['_PLAYBOOKACTION_PARAMSENTRY']._serialized_start=1202
-  _globals['_PLAYBOOKACTION_PARAMSENTRY']._serialized_end=1247
+  _globals['_PLAYBOOKACTION_PARAMSENTRY']._serialized_start=CONST_1202
+  _globals['_PLAYBOOKACTION_PARAMSENTRY']._serialized_end=CONST_1247
   _globals['_PLAYBOOK']._serialized_start=2997
   _globals['_PLAYBOOK']._serialized_end=3142
   _globals['_PLAYBOOKLIST']._serialized_start=3144
@@ -106,9 +114,9 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_RUNPLAYBOOKREQUEST']._serialized_start=3247
   _globals['_RUNPLAYBOOKREQUEST']._serialized_end=3381
   _globals['_RUNPLAYBOOKRESPONSE']._serialized_start=3384
-  _globals['_RUNPLAYBOOKRESPONSE']._serialized_end=3632
+  _globals['_RUNPLAYBOOKRESPONSE']._serialized_end=CONST_3632
   _globals['_RUNPLAYBOOKRESPONSE_SIDEEFFECTSENTRY']._serialized_start=3582
-  _globals['_RUNPLAYBOOKRESPONSE_SIDEEFFECTSENTRY']._serialized_end=3632
+  _globals['_RUNPLAYBOOKRESPONSE_SIDEEFFECTSENTRY']._serialized_end=CONST_3632
   _globals['_AEGISX']._serialized_start=3883
   _globals['_AEGISX']._serialized_end=4143
   _globals['_THREATINTELSERVICE']._serialized_start=4146

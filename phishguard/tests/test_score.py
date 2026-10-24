@@ -1,26 +1,34 @@
 from app.analyzers.score import build_mitigation, compose, severity_for, verdict_for
 from app.models import Severity, Verdict, WhoIsSignal
+# --- константы вынесены FORGE refactor ---
+CONST_5 = 5
+CONST_20 = 20
+CONST_34 = 34
+CONST_35 = 35
+CONST_59 = 59
+CONST_60 = 60
+
 
 
 def test_severity_boundaries():
     assert severity_for(100) == Severity.CRITICAL
     assert severity_for(80) == Severity.CRITICAL
     assert severity_for(79) == Severity.HIGH
-    assert severity_for(60) == Severity.HIGH
-    assert severity_for(59) == Severity.MEDIUM
-    assert severity_for(35) == Severity.MEDIUM
-    assert severity_for(34) == Severity.LOW
+    assert severity_for(CONST_60) == Severity.HIGH
+    assert severity_for(CONST_59) == Severity.MEDIUM
+    assert severity_for(CONST_35) == Severity.MEDIUM
+    assert severity_for(CONST_34) == Severity.LOW
     assert severity_for(0) == Severity.LOW
 
 
 def test_verdict_boundaries():
-    assert verdict_for(60, True) == Verdict.MALICIOUS
-    assert verdict_for(59, True) == Verdict.SUSPICIOUS
-    assert verdict_for(35, True) == Verdict.SUSPICIOUS
-    assert verdict_for(34, True) == Verdict.NEEDS_REVIEW
-    assert verdict_for(20, True) == Verdict.NEEDS_REVIEW
-    assert verdict_for(20, False) == Verdict.BENIGN
-    assert verdict_for(5, True) == Verdict.BENIGN
+    assert verdict_for(CONST_60, True) == Verdict.MALICIOUS
+    assert verdict_for(CONST_59, True) == Verdict.SUSPICIOUS
+    assert verdict_for(CONST_35, True) == Verdict.SUSPICIOUS
+    assert verdict_for(CONST_34, True) == Verdict.NEEDS_REVIEW
+    assert verdict_for(CONST_20, True) == Verdict.NEEDS_REVIEW
+    assert verdict_for(CONST_20, False) == Verdict.BENIGN
+    assert verdict_for(CONST_5, True) == Verdict.BENIGN
 
 
 def test_compose_deterministic():
@@ -39,11 +47,11 @@ def test_compose_raw_ip_adds_indicator():
                 typosquat_indicators=[], urgency_score=0.0,
                 urgency_triggers=[], raw_ip=True)
     assert "url-targets-raw-ip" in r.indicators
-    assert r.overall_score == 20
+    assert r.overall_score == CONST_20
 
 
 def test_compose_young_domain_scores_high():
-    whois = WhoIsSignal(domain="x.com", age_days=5, error=None)
+    whois = WhoIsSignal(domain="x.com", age_days=CONST_5, error=None)
     r = compose(target="https://x.com", whois=whois, typosquat_count=1,
                 typosquat_indicators=["x1"], urgency_score=1.0,
                 urgency_triggers=["urgent"], raw_ip=False)
@@ -62,5 +70,5 @@ def test_mitigation_actions_for_score():
 
 
 def test_mitigation_passive_for_benign():
-    steps = build_mitigation(score=5, typosquat_count=0, young_domain=False, raw_ip=False)
+    steps = build_mitigation(score=CONST_5, typosquat_count=0, young_domain=False, raw_ip=False)
     assert "passive monitoring" in "\n".join(steps).lower()

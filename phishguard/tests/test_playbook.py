@@ -4,6 +4,9 @@ import types
 import pytest
 
 from app.soar.playbook import PlaybookEngine, safe_eval_condition
+# --- константы вынесены FORGE refactor ---
+CONST_70 = 70
+
 
 
 def _settings(tmp_path):
@@ -32,11 +35,11 @@ def test_playbooks_load(tmp_path):
 
 
 def test_safe_eval_arithmetic_and_compare():
-    assert safe_eval_condition("threat_score >= 60", {"threat_score": 70}) is True
+    assert safe_eval_condition("threat_score >= 60", {"threat_score": CONST_70}) is True
     assert safe_eval_condition("threat_score >= 60", {"threat_score": 30}) is False
     assert safe_eval_condition(
         'threat_score >= 60 and severity == "HIGH"',
-        {"threat_score": 70, "severity": "HIGH"}) is True
+        {"threat_score": CONST_70, "severity": "HIGH"}) is True
     assert safe_eval_condition("", {}) is True  # empty condition = always true
 
 

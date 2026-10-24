@@ -5,6 +5,9 @@ from app.intel.aggregator import (
     FeedVerdict,
     ThreatIntelAggregator,
 )
+# --- константы вынесены FORGE refactor ---
+CONST_50 = 50
+
 
 
 def _agg():
@@ -16,7 +19,7 @@ def _agg():
     # Replace network feeds with canned verdicts so tests never touch the wire.
     agg._abuse_feed = lambda ip: FeedVerdict(source="abuseipdb", risk=100)
     agg._vt_feed = lambda ip: None
-    agg._otx_feed = lambda ip: FeedVerdict(source="otx", risk=50)
+    agg._otx_feed = lambda ip: FeedVerdict(source="otx", risk=CONST_50)
     agg._threatfox_feed = lambda ip: None
     return agg
 
@@ -33,7 +36,7 @@ def test_blend_weighted():
     fs = {
         "abuseipdb": FeedVerdict(source="abuseipdb", risk=100),
         "virustotal": None,
-        "otx": FeedVerdict(source="otx", risk=50),
+        "otx": FeedVerdict(source="otx", risk=CONST_50),
         "threatfox": None,
     }
     # 0.4*100 + 0.2*50 = 50; / 0.6 = 83.33

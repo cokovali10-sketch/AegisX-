@@ -1,4 +1,9 @@
 from app.ml.anomaly import AnomalyDetector
+# --- константы вынесены FORGE refactor ---
+CONST_6 = 6
+CONST_400 = 400.0
+CONST_999 = 999
+
 
 NUMERIC = ("source_port", "target_port", "payload_len", "duration_ms",
            "has_credentials", "tokens", "connection_rate")
@@ -15,7 +20,7 @@ def _event(**kw):
     base = {
         "protocol": "ssh", "source_ip": "1.2.3.4",
         "source_port": 50000, "target_port": 2222, "payload_len": 100,
-        "duration_ms": 50, "has_credentials": 1, "tokens": 6,
+        "duration_ms": 50, "has_credentials": 1, "tokens": CONST_6,
         "connection_rate": 5,
     }
     base.update(kw)
@@ -45,7 +50,7 @@ def test_analyze_forest_returns_bounded_shape():
 def test_heuristic_flags_outlier_from_known_rolling_stats():
     d = AnomalyDetector(enabled=False)
     # tokens column: mean 6, std ~6.7 (m2/n-1). A value of 60 is ~8 stds out.
-    d._rolling = _stats(n=10, tokens={"mean": 6.0, "m2": 400.0, "n": 10})
+    d._rolling = _stats(n=10, tokens={"mean": CONST_6, "m2": CONST_400, "n": 10})
     anom, score = d._heuristic_score({"tokens": 60})
     assert anom is True
     assert 0.0 < score <= 1.0
@@ -53,16 +58,16 @@ def test_heuristic_flags_outlier_from_known_rolling_stats():
 
 def test_heuristic_ignores_keys_without_variance():
     d = AnomalyDetector(enabled=False)
-    d._rolling = _stats(n=10, tokens={"mean": 6.0, "m2": 0.0, "n": 10})
-    anom, score = d._heuristic_score({"tokens": 999})
+    d._rolling = _stats(n=10, tokens={"mean": CONST_6, "m2": 0.0, "n": 10})
+    anom, score = d._heuristic_score({"tokens": CONST_999})
     assert anom is False
     assert score == 0.0
 
 
 def test_heuristic_requires_warmup():
     d = AnomalyDetector(enabled=False)
-    d._rolling = _stats(n=2, tokens={"mean": 6.0, "m2": 400.0, "n": 2})
-    anom, score = d._heuristic_score({"tokens": 999})
+    d._rolling = _stats(n=2, tokens={"mean": CONST_6, "m2": CONST_400, "n": 2})
+    anom, score = d._heuristic_score({"tokens": CONST_999})
     assert anom is False
 
 
